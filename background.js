@@ -1,6 +1,9 @@
 // Initialize the extension
 console.log('Site Blocker extension initialized');
 
+// Flag to prevent concurrent rule updates
+let isUpdatingRules = false;
+
 // Set up initial state on installation
 chrome.runtime.onInstalled.addListener(function() {
   console.log('Extension installed');
@@ -23,10 +26,8 @@ chrome.runtime.onInstalled.addListener(function() {
     if (Object.keys(updates).length > 0) {
       chrome.storage.local.set(updates, function() {
         console.log('Default settings applied');
-        updateDynamicRules();
+        // Don't call updateDynamicRules here - we'll do it once at the end
       });
-    } else {
-      updateDynamicRules();
     }
   });
 });
@@ -42,9 +43,19 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
 
 // Update the dynamic rules based on current settings
 function updateDynamicRules() {
+  // Prevent concurrent updates
+  if (isUpdatingRules) {
+    console.log('Rule update already in progress, skipping');
+    return;
+  }
+
+  isUpdatingRules = true;
+  console.log('Starting rule update');
+
   // First, get all existing rules and remove them
   chrome.declarativeNetRequest.getDynamicRules()
     .then(existingRules => {
+      console.log('Existing rules:', existingRules.length);
       const ruleIds = existingRules.map(rule => rule.id);
 
       if (ruleIds.length > 0) {
@@ -67,6 +78,7 @@ function updateDynamicRules() {
       // If blocking is disabled globally, we're done (all rules removed)
       if (!isEnabled) {
         console.log('Blocking is disabled, all rules cleared');
+        isUpdatingRules = false;
         return;
       }
 
@@ -106,14 +118,20 @@ function updateDynamicRules() {
     })
     .then(() => {
       console.log('Rules updated successfully');
+      isUpdatingRules = false;
     })
     .catch(error => {
       console.error('Error updating rules:', error);
+      isUpdatingRules = false;
     });
 }
 
-// Initialize rules when extension loads
-updateDynamicRules();
+// Wait for a short delay before initializing rules
+// This helps avoid race conditions during extension startup
+setTimeout(() => {
+  console.log('Initializing rules after startup delay');
+  updateDynamicRules();
+}, 500);
 
 // Listen for changes in storage to update rules
 chrome.storage.onChanged.addListener(function(changes, namespace) {
