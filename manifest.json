@@ -1,0 +1,20 @@
+{
+    "manifest_version": 3,
+    "name": "Block Twitter",
+    "version": "1.0",
+    "description": "Blocks Twitter.com",
+    "permissions": [
+        "declarativeNetRequest",
+        "storage",
+        "tabs"
+    ],
+    "host_permissions": [
+        "<all_urls>"
+    ],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "action": {
+        "default_popup": "popup.html"
+    }
+}
