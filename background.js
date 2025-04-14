@@ -11,7 +11,7 @@ chrome.runtime.onInstalled.addListener(function() {
   // Default settings
   const defaultSites = ['twitter.com', 'x.com'];
 
-  chrome.storage.local.get(['blockedSites', 'blockingEnabled'], function(result) {
+  chrome.storage.local.get(['blockedSites', 'blockedElements', 'elementStates'], function(result) {
     // Only set defaults if not already set
     const updates = {};
 
@@ -19,8 +19,12 @@ chrome.runtime.onInstalled.addListener(function() {
       updates.blockedSites = defaultSites;
     }
 
-    if (result.blockingEnabled === undefined) {
-      updates.blockingEnabled = true;
+    if (result.blockedElements === undefined) {
+      updates.blockedElements = [];
+    }
+
+    if (result.elementStates === undefined) {
+      updates.elementStates = {};
     }
 
     if (Object.keys(updates).length > 0) {
@@ -38,8 +42,29 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
   if (message.action === "updateRules") {
     console.log('Updating rules due to message from popup');
     updateDynamicRules();
+
+    // Notify all tabs to update their element blocking
+    notifyTabsToUpdateElements();
   }
 });
+
+// Notify all tabs to update their element blocking
+function notifyTabsToUpdateElements() {
+  chrome.tabs.query({}, function(tabs) {
+    tabs.forEach(tab => {
+      if (tab.url && tab.url.startsWith('http')) {
+        chrome.tabs.sendMessage(tab.id, {action: "hideElements"}, function(response) {
+          if (chrome.runtime.lastError) {
+            // Content script might not be loaded yet, which is fine
+            console.log(`Could not send message to tab ${tab.id}:`, chrome.runtime.lastError);
+          } else {
+            console.log(`Element hiding message sent to tab ${tab.id}`);
+          }
+        });
+      }
+    });
+  });
+}
 
 // Update the dynamic rules based on current settings
 function updateDynamicRules() {
@@ -67,20 +92,12 @@ function updateDynamicRules() {
     .then(() => {
       // Now get the current settings
       return new Promise((resolve) => {
-        chrome.storage.local.get(['blockedSites', 'blockingEnabled', 'siteStates'], resolve);
+        chrome.storage.local.get(['blockedSites', 'siteStates'], resolve);
       });
     })
     .then(result => {
-      const isEnabled = result.blockingEnabled !== false;
       const sites = result.blockedSites || ['twitter.com', 'x.com'];
       const siteStates = result.siteStates || {};
-
-      // If blocking is disabled globally, we're done (all rules removed)
-      if (!isEnabled) {
-        console.log('Blocking is disabled, all rules cleared');
-        isUpdatingRules = false;
-        return;
-      }
 
       // Create rules for each enabled site
       const rules = [];
@@ -136,8 +153,30 @@ setTimeout(() => {
 // Listen for changes in storage to update rules
 chrome.storage.onChanged.addListener(function(changes, namespace) {
   if (namespace === 'local' &&
-      (changes.blockingEnabled || changes.blockedSites || changes.siteStates)) {
+      (changes.blockedSites || changes.siteStates || changes.blockedElements)) {
     console.log('Settings changed, updating rules');
     updateDynamicRules();
+
+    // If blocked elements changed, notify tabs
+    if (changes.blockedElements) {
+      notifyTabsToUpdateElements();
+    }
+  }
+});
+
+// Listen for tab updates to apply element blocking
+chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
+  if (changeInfo.status === 'complete' && tab.url && tab.url.startsWith('http')) {
+    // Wait a short time for the page to fully load
+    setTimeout(() => {
+      chrome.tabs.sendMessage(tabId, {action: "hideElements"}, function(response) {
+        if (chrome.runtime.lastError) {
+          // Content script might not be loaded yet, which is fine
+          console.log(`Could not send message to tab ${tabId}:`, chrome.runtime.lastError);
+        } else {
+          console.log(`Element hiding message sent to tab ${tabId}`);
+        }
+      });
+    }, 500);
   }
 });

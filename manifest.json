@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
-    "name": "Block Twitter",
+    "name": "Site Blocker",
     "version": "1.0",
-    "description": "Blocks Twitter.com",
+    "description": "Blocks specific sites and elements",
     "permissions": [
         "declarativeNetRequest",
         "storage",
@@ -14,6 +14,16 @@
     "background": {
         "service_worker": "background.js"
     },
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content.js"
+            ]
+        }
+    ],
     "action": {
         "default_popup": "popup.html"
     }

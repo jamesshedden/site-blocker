@@ -101,27 +101,104 @@
       margin-left: 8px;
       cursor: pointer;
     }
+    /* Tab styles */
+    .tabs {
+      display: flex;
+      margin-bottom: 15px;
+      border-bottom: 1px solid #ccc;
+    }
+    .tab {
+      padding: 10px 15px;
+      cursor: pointer;
+      background-color: #f1f1f1;
+      border: 1px solid #ccc;
+      border-bottom: none;
+      margin-right: 5px;
+      border-radius: 5px 5px 0 0;
+    }
+    .tab.active {
+      background-color: white;
+      border-bottom: 1px solid white;
+      margin-bottom: -1px;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    /* Element blocking styles */
+    .element-form {
+      margin-bottom: 15px;
+    }
+    .element-form input {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .element-form button {
+      width: 100%;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .element-list {
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: 15px;
+    }
+    .element-item {
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .element-domain {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .element-selector {
+      font-family: monospace;
+      word-break: break-all;
+      margin-bottom: 5px;
+    }
+    .element-actions {
+      display: flex;
+      justify-content: flex-end;
+    }
   </style>
 </head>
 <body>
   <h2>Site Blocker</h2>
-  <div class="toggle-container">
-    <span>Master Toggle:</span>
-    <label class="switch">
-      <input type="checkbox" id="masterToggle">
-      <span class="slider"></span>
-    </label>
-  </div>
-  <div class="status" id="statusText">Loading...</div>
-
-  <h3>Blocked Sites</h3>
-  <div class="site-list" id="siteList">
-    <!-- Sites will be added here dynamically -->
+  <div class="tabs">
+    <div class="tab active" data-tab="blocked-sites">Blocked Sites</div>
+    <div class="tab" data-tab="blocked-elements">Blocked Elements</div>
   </div>
 
-  <div class="add-site">
-    <input type="text" id="newSite" placeholder="Enter domain (e.g., facebook.com)">
-    <button id="addSiteBtn">Add</button>
+  <div id="blocked-sites" class="tab-content active">
+    <div class="site-list" id="siteList">
+      <!-- Sites will be added here dynamically -->
+    </div>
+
+    <div class="add-site">
+      <input type="text" id="newSite" placeholder="Enter domain (e.g., facebook.com)">
+      <button id="addSiteBtn">Add</button>
+    </div>
+  </div>
+
+  <div id="blocked-elements" class="tab-content">
+    <div class="element-form">
+      <input type="text" id="elementDomain" placeholder="Enter domain (e.g., linkedin.com)">
+      <input type="text" id="elementSelector" placeholder="Enter element selector (e.g., main, .feed, #sidebar)">
+      <button id="addElementBtn">Add Element to Block</button>
+    </div>
+
+    <div class="element-list" id="elementList">
+      <!-- Elements will be added here dynamically -->
+    </div>
   </div>
 
   <script src="popup.js"></script>
