@@ -159,7 +159,7 @@ function updateDynamicRules() {
           priority: 2000,
           action: { type: "block" },
           condition: {
-            urlFilter: site,
+            urlFilter: `||${site}^`,
             resourceTypes: [
               "main_frame", "sub_frame", "stylesheet", "script", "image",
               "font", "object", "xmlhttprequest", "ping", "csp_report",
