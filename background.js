@@ -45,10 +45,20 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
   console.log('Received message:', message);
   if (message.action === "updateRules") {
     console.log('Updating rules due to message from popup');
-    updateDynamicRules();
 
-    // Notify all tabs to update their element blocking
-    notifyTabsToUpdateElements();
+    // Update rules and send response when done
+    updateDynamicRules().then(() => {
+      // Notify all tabs to update their element blocking
+      return notifyTabsToUpdateElements();
+    }).then(() => {
+      sendResponse({status: "Rules updated successfully"});
+    }).catch(error => {
+      console.error('Error in rule update:', error);
+      sendResponse({status: "Error updating rules", error: error.toString()});
+    });
+
+    // Return true to indicate we'll send the response asynchronously
+    return true;
   } else if (message.action === "checkAutoToggle") {
     console.log('Manually checking auto-toggle schedules');
     checkAutoToggleSchedules();
@@ -62,17 +72,38 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
 
 // Notify all tabs to update their element blocking
 function notifyTabsToUpdateElements() {
-  chrome.tabs.query({}, function(tabs) {
-    tabs.forEach(tab => {
-      if (tab.url && tab.url.startsWith('http')) {
-        chrome.tabs.sendMessage(tab.id, {action: "hideElements"}, function(response) {
-          if (chrome.runtime.lastError) {
-            // Content script might not be loaded yet, which is fine
-            console.log(`Could not send message to tab ${tab.id}:`, chrome.runtime.lastError);
-          } else {
-            console.log(`Element hiding message sent to tab ${tab.id}`);
-          }
-        });
+  return new Promise((resolve) => {
+    chrome.tabs.query({}, function(tabs) {
+      let messagesSent = 0;
+      let messagesComplete = 0;
+
+      if (tabs.length === 0) {
+        resolve();
+        return;
+      }
+
+      tabs.forEach(tab => {
+        if (tab.url && tab.url.startsWith('http')) {
+          messagesSent++;
+          chrome.tabs.sendMessage(tab.id, {action: "hideElements"}, function(response) {
+            messagesComplete++;
+            if (chrome.runtime.lastError) {
+              // Content script might not be loaded yet, which is fine
+              console.log(`Could not send message to tab ${tab.id}:`, chrome.runtime.lastError);
+            } else {
+              console.log(`Element hiding message sent to tab ${tab.id}`);
+            }
+
+            if (messagesComplete === messagesSent) {
+              resolve();
+            }
+          });
+        }
+      });
+
+      // If no messages were sent, resolve immediately
+      if (messagesSent === 0) {
+        resolve();
       }
     });
   });
@@ -83,14 +114,14 @@ function updateDynamicRules() {
   // Prevent concurrent updates
   if (isUpdatingRules) {
     console.log('Rule update already in progress, skipping');
-    return;
+    return Promise.resolve();
   }
 
   isUpdatingRules = true;
   console.log('Starting rule update');
 
   // First, get all existing rules and remove them
-  chrome.declarativeNetRequest.getDynamicRules()
+  return chrome.declarativeNetRequest.getDynamicRules()
     .then(existingRules => {
       console.log('Existing rules:', existingRules.length);
       const ruleIds = existingRules.map(rule => rule.id);
@@ -152,6 +183,7 @@ function updateDynamicRules() {
     .catch(error => {
       console.error('Error updating rules:', error);
       isUpdatingRules = false;
+      throw error; // Re-throw to propagate to callers
     });
 }
 

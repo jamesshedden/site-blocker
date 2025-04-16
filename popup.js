@@ -246,13 +246,16 @@ function handleSiteToggle(event) {
     }
 
     chrome.storage.local.set({siteStates: siteStates}, function() {
-      updateRules();
-
       // Refresh the UI to show updated states
       chrome.storage.local.get(['blockedSites', 'autoToggleSchedules'], function(result) {
         const sites = result.blockedSites || DEFAULT_SITES;
         const schedules = result.autoToggleSchedules || {};
         renderSiteList(sites, siteStates, schedules);
+
+        // Update rules and refresh the tab once rules are updated
+        updateRules(function() {
+          refreshCurrentTab();
+        });
       });
     });
   });
@@ -334,7 +337,10 @@ function handleElementToggle(event) {
       elementStates[elementKey] = isEnabled;
 
       chrome.storage.local.set({elementStates: elementStates}, function() {
-        updateRules();
+        // Update rules and refresh the tab once rules are updated
+        updateRules(function() {
+          refreshCurrentTab();
+        });
       });
     }
   });
@@ -448,8 +454,44 @@ addElementBtn.addEventListener('click', function() {
 });
 
 // Update the blocking rules
-function updateRules() {
-  chrome.runtime.sendMessage({action: "updateRules"});
+function updateRules(callback) {
+  // Show a small loading indicator
+  const loadingIndicator = document.createElement('div');
+  loadingIndicator.textContent = 'Updating rules...';
+  loadingIndicator.style.position = 'fixed';
+  loadingIndicator.style.top = '0';
+  loadingIndicator.style.left = '0';
+  loadingIndicator.style.right = '0';
+  loadingIndicator.style.backgroundColor = '#2196F3';
+  loadingIndicator.style.color = 'white';
+  loadingIndicator.style.padding = '5px';
+  loadingIndicator.style.textAlign = 'center';
+  loadingIndicator.style.zIndex = '2000';
+
+  document.body.appendChild(loadingIndicator);
+
+  chrome.runtime.sendMessage({action: "updateRules"}, function(response) {
+    console.log('Rules update response:', response);
+
+    // Remove the loading indicator
+    document.body.removeChild(loadingIndicator);
+
+    // Add a small delay to ensure all tabs have processed the rules
+    setTimeout(function() {
+      if (callback && typeof callback === 'function') {
+        callback();
+      }
+    }, 500); // Increased delay to ensure rules are fully applied
+  });
+}
+
+// Function to refresh the current tab
+function refreshCurrentTab() {
+  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+    if (tabs.length > 0) {
+      chrome.tabs.reload(tabs[0].id);
+    }
+  });
 }
 
 // Initialize the UI when popup opens
