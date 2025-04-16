@@ -73,6 +73,17 @@
       margin-right: 10px;
       word-break: break-all;
     }
+    .toggle-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-right: 10px;
+    }
+    .auto-toggle-indicator {
+      font-size: 12px;
+      color: #666;
+      white-space: nowrap;
+    }
     .delete-btn {
       background: #f44336;
       color: white;
@@ -169,6 +180,76 @@
       display: flex;
       justify-content: flex-end;
     }
+    /* Settings styles */
+    .settings-section {
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid #eee;
+    }
+    .settings-title {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .setting-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .setting-label {
+      flex-grow: 1;
+    }
+    .setting-input {
+      width: 60px;
+      padding: 5px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    /* Debug section styles */
+    .debug-section {
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid #eee;
+    }
+    .debug-title {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .debug-content {
+      font-family: monospace;
+      font-size: 12px;
+      background-color: #f5f5f5;
+      padding: 10px;
+      border-radius: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    .refresh-btn {
+      background: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 5px 10px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .debug-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .simulate-time {
+      margin-top: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .simulate-time input {
+      width: 50px;
+      padding: 5px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body>
@@ -176,6 +257,7 @@
   <div class="tabs">
     <div class="tab active" data-tab="blocked-sites">Blocked Sites</div>
     <div class="tab" data-tab="blocked-elements">Blocked Elements</div>
+    <div class="tab" data-tab="settings">Settings</div>
   </div>
 
   <div id="blocked-sites" class="tab-content active">
@@ -198,6 +280,33 @@
 
     <div class="element-list" id="elementList">
       <!-- Elements will be added here dynamically -->
+    </div>
+  </div>
+
+  <div id="settings" class="tab-content">
+    <div class="settings-section">
+      <div class="settings-title">Auto-Toggle Settings</div>
+      <div class="setting-item">
+        <div class="setting-label">Auto-toggle sites back on after (minutes):</div>
+        <input type="number" id="autoToggleTime" class="setting-input" min="1" max="1440">
+      </div>
+    </div>
+
+    <div class="debug-section">
+      <div class="debug-title">Debug Information</div>
+      <div class="debug-content" id="debugInfo">
+        Loading debug information...
+      </div>
+      <div class="debug-actions">
+        <button id="refreshDebugBtn" class="refresh-btn">Refresh Debug Info</button>
+        <button id="checkAutoToggleBtn" class="refresh-btn">Check Auto-Toggle Now</button>
+      </div>
+
+      <div class="simulate-time">
+        <div>Simulate time passing:</div>
+        <input type="number" id="simulateTimeInput" class="setting-input" min="1" max="60" value="2">
+        <button id="simulateTimeBtn" class="refresh-btn">Simulate</button>
+      </div>
     </div>
   </div>
 

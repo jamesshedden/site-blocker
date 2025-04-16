@@ -11,7 +11,7 @@ chrome.runtime.onInstalled.addListener(function() {
   // Default settings
   const defaultSites = ['twitter.com', 'x.com'];
 
-  chrome.storage.local.get(['blockedSites', 'blockedElements', 'elementStates'], function(result) {
+  chrome.storage.local.get(['blockedSites', 'blockedElements', 'elementStates', 'autoToggleTime'], function(result) {
     // Only set defaults if not already set
     const updates = {};
 
@@ -25,6 +25,10 @@ chrome.runtime.onInstalled.addListener(function() {
 
     if (result.elementStates === undefined) {
       updates.elementStates = {};
+    }
+
+    if (result.autoToggleTime === undefined) {
+      updates.autoToggleTime = 2; // Default 2 minutes
     }
 
     if (Object.keys(updates).length > 0) {
@@ -45,6 +49,14 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
 
     // Notify all tabs to update their element blocking
     notifyTabsToUpdateElements();
+  } else if (message.action === "checkAutoToggle") {
+    console.log('Manually checking auto-toggle schedules');
+    checkAutoToggleSchedules();
+    sendResponse({status: "Auto-toggle check triggered"});
+  } else if (message.action === "simulateTimePassing") {
+    console.log('Simulating time passing');
+    simulateTimePassing(message.minutes || 2);
+    sendResponse({status: "Time simulation triggered"});
   }
 });
 
@@ -180,3 +192,96 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
     }, 500);
   }
 });
+
+// Check for auto-toggle schedules periodically
+function checkAutoToggleSchedules() {
+  console.log('Checking auto-toggle schedules...');
+
+  chrome.storage.local.get(['autoToggleSchedules', 'siteStates', 'autoToggleTime'], function(result) {
+    const schedules = result.autoToggleSchedules || {};
+    const siteStates = result.siteStates || {};
+    const currentTime = Date.now();
+    let updated = false;
+
+    console.log('Current auto-toggle schedules:', schedules);
+    console.log('Current time:', new Date(currentTime).toLocaleString());
+
+    // Check each scheduled site
+    for (const site in schedules) {
+      const scheduledTime = schedules[site];
+      const timeRemaining = scheduledTime - currentTime;
+
+      console.log(`Site: ${site}, Scheduled time: ${new Date(scheduledTime).toLocaleString()}, Time remaining: ${Math.round(timeRemaining / 1000)} seconds`);
+
+      if (scheduledTime <= currentTime) {
+        console.log(`Auto-toggle time reached for ${site}`);
+
+        // Toggle the site back on
+        siteStates[site] = true;
+
+        // Remove the schedule
+        delete schedules[site];
+
+        updated = true;
+      }
+    }
+
+    // If any sites were toggled, update storage and rules
+    if (updated) {
+      console.log('Applying auto-toggle changes:', siteStates);
+
+      chrome.storage.local.set({
+        siteStates: siteStates,
+        autoToggleSchedules: schedules
+      }, function() {
+        console.log('Auto-toggle applied, updating rules');
+        updateDynamicRules();
+
+        // Notify the popup if it's open
+        chrome.runtime.sendMessage({
+          action: "autoToggleApplied",
+          siteStates: siteStates
+        }).catch(error => {
+          // Popup might not be open, which is fine
+          console.log('Could not notify popup:', error);
+        });
+      });
+    } else {
+      console.log('No auto-toggles to apply at this time');
+    }
+  });
+}
+
+// Check auto-toggle schedules every 30 seconds for more frequent checks
+setInterval(checkAutoToggleSchedules, 30000);
+
+// Also check immediately on startup
+setTimeout(checkAutoToggleSchedules, 1000);
+
+// Simulate time passing for testing
+function simulateTimePassing(minutes) {
+  console.log(`Simulating ${minutes} minutes passing...`);
+
+  chrome.storage.local.get(['autoToggleSchedules'], function(result) {
+    const schedules = result.autoToggleSchedules || {};
+    const currentTime = Date.now();
+    const simulatedTime = currentTime + (minutes * 60 * 1000);
+
+    // Adjust all scheduled times to simulate time passing
+    for (const site in schedules) {
+      const originalTime = schedules[site];
+      const timeElapsed = simulatedTime - currentTime;
+      schedules[site] = originalTime - timeElapsed;
+
+      console.log(`Site: ${site}, Original time: ${new Date(originalTime).toLocaleString()}, New time: ${new Date(schedules[site]).toLocaleString()}`);
+    }
+
+    // Save the adjusted schedules
+    chrome.storage.local.set({autoToggleSchedules: schedules}, function() {
+      console.log('Adjusted schedules saved, checking auto-toggle');
+
+      // Check auto-toggle with the adjusted schedules
+      checkAutoToggleSchedules();
+    });
+  });
+}
