@@ -9,11 +9,6 @@ const elementSelectorInput = document.getElementById('elementSelector');
 const addElementBtn = document.getElementById('addElementBtn');
 const elementList = document.getElementById('elementList');
 const autoToggleTimeInput = document.getElementById('autoToggleTime');
-const debugInfo = document.getElementById('debugInfo');
-const refreshDebugBtn = document.getElementById('refreshDebugBtn');
-const checkAutoToggleBtn = document.getElementById('checkAutoToggleBtn');
-const simulateTimeInput = document.getElementById('simulateTimeInput');
-const simulateTimeBtn = document.getElementById('simulateTimeBtn');
 
 // Default sites to block
 const DEFAULT_SITES = ['twitter.com', 'x.com'];
@@ -28,21 +23,16 @@ function initializeUI() {
     const sites = result.blockedSites || DEFAULT_SITES;
     const siteStates = result.siteStates || {};
 
-    console.log('Sites loaded:', sites);
     renderSiteList(sites, siteStates, result.autoToggleSchedules || {});
 
     // Load blocked elements
     const blockedElements = result.blockedElements || [];
     const elementStates = result.elementStates || {};
-    console.log('Blocked elements loaded:', blockedElements);
     renderElementList(blockedElements, elementStates);
 
     // Load auto-toggle time setting
     const autoToggleTime = result.autoToggleTime || DEFAULT_AUTO_TOGGLE_TIME;
     autoToggleTimeInput.value = autoToggleTime;
-
-    // Update debug info
-    updateDebugInfo();
   });
 
   // Set up tab switching
@@ -53,102 +43,12 @@ function initializeUI() {
 
   // Listen for auto-toggle messages from background script
   setupAutoToggleListener();
-
-  // Set up debug refresh button
-  setupDebugRefresh();
-
-  // Set up check auto-toggle button
-  setupCheckAutoToggle();
-
-  // Set up simulate time button
-  setupSimulateTime();
-}
-
-// Set up simulate time button
-function setupSimulateTime() {
-  simulateTimeBtn.addEventListener('click', function() {
-    const minutes = parseInt(simulateTimeInput.value);
-
-    if (isNaN(minutes) || minutes < 1) {
-      alert('Please enter a valid number of minutes');
-      return;
-    }
-
-    console.log(`Simulating ${minutes} minutes passing`);
-
-    // Send message to background script to simulate time passing
-    chrome.runtime.sendMessage({action: "simulateTimePassing", minutes: minutes}, function(response) {
-      console.log('Time simulation response:', response);
-
-      // Update debug info after a short delay to allow the background script to process
-      setTimeout(updateDebugInfo, 500);
-    });
-  });
-}
-
-// Set up check auto-toggle button
-function setupCheckAutoToggle() {
-  checkAutoToggleBtn.addEventListener('click', function() {
-    console.log('Manually triggering auto-toggle check');
-
-    // Send message to background script to check auto-toggle
-    chrome.runtime.sendMessage({action: "checkAutoToggle"}, function(response) {
-      console.log('Auto-toggle check response:', response);
-
-      // Update debug info after a short delay to allow the background script to process
-      setTimeout(updateDebugInfo, 500);
-    });
-  });
-}
-
-// Set up debug refresh button
-function setupDebugRefresh() {
-  refreshDebugBtn.addEventListener('click', function() {
-    updateDebugInfo();
-  });
-}
-
-// Update debug information
-function updateDebugInfo() {
-  chrome.storage.local.get(['siteStates', 'autoToggleSchedules', 'autoToggleTime'], function(result) {
-    const siteStates = result.siteStates || {};
-    const schedules = result.autoToggleSchedules || {};
-    const autoToggleTime = result.autoToggleTime || DEFAULT_AUTO_TOGGLE_TIME;
-    const currentTime = Date.now();
-
-    let debugText = `Current time: ${new Date(currentTime).toLocaleString()}\n`;
-    debugText += `Auto-toggle time setting: ${autoToggleTime} minutes\n\n`;
-    debugText += `Site States:\n`;
-
-    for (const site in siteStates) {
-      debugText += `${site}: ${siteStates[site] ? 'Enabled' : 'Disabled'}\n`;
-    }
-
-    debugText += `\nAuto-toggle Schedules:\n`;
-
-    if (Object.keys(schedules).length === 0) {
-      debugText += `No active schedules\n`;
-    } else {
-      for (const site in schedules) {
-        const scheduledTime = schedules[site];
-        const timeRemaining = Math.max(0, scheduledTime - currentTime);
-        const minutesRemaining = Math.ceil(timeRemaining / 60000);
-
-        debugText += `${site}: Scheduled for ${new Date(scheduledTime).toLocaleString()}\n`;
-        debugText += `  Time remaining: ${minutesRemaining} minutes\n`;
-      }
-    }
-
-    debugInfo.textContent = debugText;
-  });
 }
 
 // Set up listener for auto-toggle messages
 function setupAutoToggleListener() {
   chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     if (message.action === "autoToggleApplied") {
-      console.log('Received auto-toggle applied message:', message);
-
       // Refresh the UI to show updated site states
       chrome.storage.local.get(['blockedSites', 'siteStates', 'autoToggleSchedules'], function(result) {
         const sites = result.blockedSites || DEFAULT_SITES;
@@ -156,7 +56,6 @@ function setupAutoToggleListener() {
         const schedules = result.autoToggleSchedules || {};
 
         renderSiteList(sites, siteStates, schedules);
-        updateDebugInfo();
       });
     }
   });
@@ -174,9 +73,7 @@ function setupAutoToggleTime() {
     }
 
     // Save the setting
-    chrome.storage.local.set({autoToggleTime: time}, function() {
-      console.log(`Auto-toggle time set to ${time} minutes`);
-    });
+    chrome.storage.local.set({autoToggleTime: time});
   });
 }
 
@@ -199,10 +96,6 @@ function setupTabs() {
 // Render the list of blocked sites
 function renderSiteList(sites, siteStates, schedules) {
   siteList.innerHTML = '';
-
-  console.log('Rendering site list:', sites);
-  console.log('Site states:', siteStates);
-  console.log('Auto-toggle schedules:', schedules);
 
   if (!sites || sites.length === 0) {
     siteList.innerHTML = '<p>No sites are currently blocked.</p>';
@@ -277,8 +170,6 @@ function renderSiteList(sites, siteStates, schedules) {
 function renderElementList(elements, elementStates) {
   elementList.innerHTML = '';
 
-  console.log('Rendering element list:', elements);
-
   if (!elements || elements.length === 0) {
     elementList.innerHTML = '<p>No elements are currently blocked.</p>';
     return;
@@ -337,8 +228,6 @@ function handleSiteToggle(event) {
   const site = event.target.dataset.site;
   const isEnabled = event.target.checked;
 
-  console.log(`Toggle site ${site} to ${isEnabled ? 'ON' : 'OFF'}`);
-
   chrome.storage.local.get(['siteStates', 'autoToggleTime', 'autoToggleSchedules'], function(result) {
     const siteStates = result.siteStates || {};
     siteStates[site] = isEnabled;
@@ -352,13 +241,9 @@ function handleSiteToggle(event) {
       const schedules = result.autoToggleSchedules || {};
       if (schedules[site]) {
         delete schedules[site];
-        chrome.storage.local.set({autoToggleSchedules: schedules}, function() {
-          console.log(`Removed auto-toggle schedule for ${site}`);
-        });
+        chrome.storage.local.set({autoToggleSchedules: schedules});
       }
     }
-
-    console.log('Updated siteStates:', siteStates);
 
     chrome.storage.local.set({siteStates: siteStates}, function() {
       updateRules();
@@ -368,7 +253,6 @@ function handleSiteToggle(event) {
         const sites = result.blockedSites || DEFAULT_SITES;
         const schedules = result.autoToggleSchedules || {};
         renderSiteList(sites, siteStates, schedules);
-        updateDebugInfo();
       });
     });
   });
@@ -376,8 +260,6 @@ function handleSiteToggle(event) {
 
 // Schedule auto-toggle for a site
 function scheduleAutoToggle(site, minutes) {
-  console.log(`Scheduling auto-toggle for ${site} in ${minutes} minutes`);
-
   // Store the scheduled time
   const scheduledTime = Date.now() + (minutes * 60 * 1000);
 
@@ -386,8 +268,6 @@ function scheduleAutoToggle(site, minutes) {
     schedules[site] = scheduledTime;
 
     chrome.storage.local.set({autoToggleSchedules: schedules}, function() {
-      console.log(`Auto-toggle scheduled for ${site} at ${new Date(scheduledTime).toLocaleString()}`);
-
       // Show a notification to the user
       const notification = document.createElement('div');
       notification.className = 'notification';
@@ -452,8 +332,6 @@ function handleElementToggle(event) {
       const element = elements[index];
       const elementKey = `${element.domain}:${element.selector}`;
       elementStates[elementKey] = isEnabled;
-
-      console.log(`Toggle element ${elementKey} to ${isEnabled ? 'ON' : 'OFF'}`);
 
       chrome.storage.local.set({elementStates: elementStates}, function() {
         updateRules();
